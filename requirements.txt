@@ -3,4 +3,5 @@ uvicorn==0.38.0
 jinja2
 supabase==2.24.0
 python-dotenv
+python-multipart
 # ...any other dependencies you need
