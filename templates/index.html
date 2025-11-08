@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="rw">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Parent Check-in</title>
+  <style>
+    * {
+        box-sizing: border-box;
+    }
+
+    body {
+        font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        text-align: center;
+        padding: 40px 20px;
+        background-color: #e6f7ff;
+        color: #333;
+        margin: 0;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+    }
+
+    h2 {
+        color: #007bff;
+        margin-bottom: 25px;
+        font-weight: 700;
+        font-size: 1.8rem;
+    }
+
+    form {
+        background: white;
+        padding: 30px;
+        border-radius: 12px;
+        width: 350px;
+        max-width: 95%;
+        margin: 20px auto;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        border: 1px solid #cceeff;
+    }
+
+    input[type="text"], select {
+        width: 100%;
+        padding: 12px 15px;
+        margin: 10px 0;
+        border: 1px solid #ccc;
+        border-radius: 6px;
+        transition: border-color 0.3s, box-shadow 0.3s;
+        font-size: 16px;
+        appearance: none;
+    }
+
+    input[type="text"]::placeholder {
+        color: #999;
+    }
+
+    input[type="text"]:focus, select:focus {
+        border-color: #007bff;
+        box-shadow: 0 0 5px rgba(0, 123, 255, 0.3);
+        outline: none;
+    }
+
+    .select-wrapper {
+        position: relative;
+    }
+
+    .select-wrapper::after {
+        content: '▼';
+        position: absolute;
+        top: 50%;
+        right: 15px;
+        transform: translateY(-50%);
+        color: #555;
+        pointer-events: none;
+        font-size: 0.8rem;
+    }
+
+    button[type="submit"] {
+        width: 100%;
+        padding: 12px;
+        margin-top: 20px;
+        background: #007bff;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 17px;
+        font-weight: bold;
+        transition: background-color 0.3s, transform 0.1s;
+        box-shadow: 0 4px 10px rgba(0, 123, 255, 0.3);
+    }
+
+    button[type="submit"]:hover {
+        background-color: #0056b3;
+        transform: translateY(-1px);
+    }
+
+    button[type="submit"]:active {
+        transform: translateY(0);
+    }
+
+    a {
+        text-decoration: none;
+        color: #007bff;
+        font-weight: 500;
+    }
+
+    footer {
+      margin-top: 20px;
+    }
+
+    /* Toast Styles */
+    .toast {
+      position: fixed;
+      bottom: 30px;
+      right: 30px;
+      background: #28a745;
+      color: white;
+      padding: 15px 25px;
+      border-radius: 8px;
+      font-weight: 500;
+      font-size: 16px;
+      opacity: 0;
+      transform: translateY(20px);
+      transition: all 0.4s ease;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+      z-index: 1000;
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    @media (max-width: 400px) {
+        body { padding: 10px; }
+        h2 { font-size: 1.5rem; }
+        form { padding: 20px; margin: 10px auto; }
+        input, select, button { padding: 10px; font-size: 15px; }
+    }
+  </style>
+</head>
+<body>
+  <h2>Menyesha Umwana cg Shaka umwana kuri visite <br> Iteme</h2>
+
+  <form id="arrivalForm" action="/arrival" method="post">
+    <input type="text" name="student_name" placeholder="Amazina y'umwana" required>
+    
+    <div class="select-wrapper">
+        <select name="class_name" required>
+          <option value="" selected disabled>Hitamo Ishuri ry'umwana</option>
+          <option value="" disabled>O'Leve</option>
+          <option value="S1">S1</option>
+          <option value="S2">S2</option>
+          <option value="S3">S3</option>
+          <option value="" disabled>A'Leve</option>
+          <option value="S4">S4/L3</option>
+          <option value="S5">S5/L4</option>
+          <option value="S6">S6/L5</option>
+        </select>
+    </div>
+
+    <button type="submit">Menyesha Iteme</button>
+  </form>
+
+  <a href="#">Menya Byinshi Kw'Iteme</a>
+
+  <footer>
+    <h2 style="text-transform: uppercase; font-size: 20px;">powered by <span style="color: rgb(28, 253, 7);">1%</span> & ICF</h2>
+  </footer>
+
+  <!-- Toast Notification -->
+  <div id="toast" class="toast">Ubutumwa bwoherejwe, murakoze!</div>
+
+  <script>
+    const form = document.getElementById('arrivalForm');
+    const toast = document.getElementById('toast');
+
+    form.addEventListener('submit', (e) => {
+      e.preventDefault(); // Prevent instant reload
+
+      // Send data manually
+      const formData = new FormData(form);
+      fetch('/arrival', {
+        method: 'POST',
+        body: formData
+      })
+      .then(() => {
+        showToast();
+        form.reset();
+      })
+      .catch(err => console.error(err));
+    });
+
+    function showToast() {
+      toast.classList.add('show');
+      setTimeout(() => {
+        toast.classList.remove('show');
+      }, 3000); // hide after 3s
+    }
+  </script>
+</body>
+</html>

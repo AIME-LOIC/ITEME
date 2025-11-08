@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Dashboard</title>
+  <style>
+    /* Styling same as yours (unchanged) */
+    * { box-sizing: border-box; }
+    body {
+      font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      padding: 20px;
+      background-color: #f8f9fa;
+      color: #343a40;
+      margin: 0;
+      min-height: 100vh;
+    }
+    h2 {
+      color: #007bff;
+      text-align: center;
+      margin-bottom: 30px;
+      font-weight: 700;
+      padding-bottom: 10px;
+      border-bottom: 3px solid #e9ecef;
+      letter-spacing: 0.5px;
+    }
+    .table-responsive { overflow-x: auto; }
+    table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      background-color: white;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+      border-radius: 10px;
+      overflow: hidden;
+      min-width: 400px;
+    }
+    th {
+      background-color: #007bff;
+      color: white;
+      padding: 14px 12px;
+      text-align: left;
+      font-weight: 600;
+      text-transform: uppercase;
+      font-size: 0.85rem;
+      border: none;
+    }
+    td {
+      padding: 12px;
+      border-bottom: 1px solid #dee2e6;
+      vertical-align: middle;
+      text-align: left;
+    }
+    tr:nth-child(even) { background-color: #f1f7fe; }
+    tr:last-child td { border-bottom: none; }
+    button {
+      background: #28a745;
+      color: white;
+      border: none;
+      padding: 8px 15px;
+      cursor: pointer;
+      border-radius: 5px;
+      font-weight: 500;
+      transition: background-color 0.2s, transform 0.1s;
+      box-shadow: 0 2px 4px rgba(40, 167, 69, 0.2);
+    }
+    button:hover { background-color: #1e7e34; transform: translateY(-1px); }
+    button:active { transform: translateY(0); }
+    th:last-child, td:last-child { text-align: center; }
+    @media (max-width: 768px) {
+      body { padding: 10px; }
+      h2 { font-size: 1.8rem; margin-bottom: 20px; }
+      th, td { padding: 10px 8px; font-size: 0.9rem; }
+      button { padding: 6px 10px; font-size: 0.85rem; }
+    }
+    /* ✅ Add a highlight animation for new arrivals */
+    .new-row {
+      background-color: #c8e6c9;
+      animation: fadeOut 2s forwards;
+    }
+    @keyframes fadeOut {
+      from { background-color: #c8e6c9; }
+      to { background-color: white; }
+    }
+  </style>
+</head>
+<body>
+  <h2>Arrivals Management Dashboard</h2>
+
+  <div class="table-responsive">
+    <table id="arrivalsTable">
+      <thead>
+        <tr>
+          <th>Student Name</th>
+          <th>Class</th>
+          <th>Status</th>
+          <th>Announce</th>
+        </tr>
+      </thead>
+      <tbody id="tableBody">
+        {% for student in arrivals %}
+        <tr>
+          <td>{{ student.student_name }}</td>
+          <td>{{ student.class_name }}</td>
+          <td>{{ student.status }}</td>
+          <td>
+            <button onclick="announce('{{ student.student_name }}', '{{ student.class_name }}')">Announce</button>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <footer>
+    <h1 style="text-transform: uppercase; font-size: 20px; position: fixed; bottom: 0px; right: 700px;">
+      powered by <span style="color: rgb(28, 253, 7);">1%</span> & ICF
+    </h1>
+  </footer>
+
+  <script>
+    function announce(name, className) {
+      const msg = new SpeechSynthesisUtterance(
+        `Student ${name} from class ${className}, your parent has arrived`
+      );
+      speechSynthesis.speak(msg);
+    }
+  </script>
+
+  <!-- ✅ Supabase Realtime -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    const SUPABASE_URL = "https://ruxiswyfpkbatnzcbvog.supabase.co";
+    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ1eGlzd3lmcGtiYXRuemNidm9nIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjI0ODI4NzYsImV4cCI6MjA3ODA1ODg3Nn0.M7lYjHx5rPo3fziZtmi4FP-skH6FVKopCjM5O2246QY";
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    supabase
+      .channel('arrival-changes')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'arrival' },
+        payload => {
+          console.log('🎉 New arrival:', payload.new);
+          addArrivalRow(payload.new);
+          playNotificationSound();
+        }
+      )
+      .subscribe();
+
+    function addArrivalRow(data) {
+      const tbody = document.getElementById('tableBody');
+      const tr = document.createElement('tr');
+      tr.classList.add('new-row');
+      tr.innerHTML = `
+        <td>${data.student_name}</td>
+        <td>${data.class_name}</td>
+        <td>${data.status}</td>
+        <td><button onclick="announce('${data.student_name}', '${data.class_name}')">Announce</button></td>
+      `;
+      tbody.prepend(tr);
+    }
+
+    // ✅ Optional notification sound when new student arrives
+    function playNotificationSound() {
+      const audio = new Audio("https://cdn.pixabay.com/download/audio/2022/03/15/audio_5eac2b9b4f.mp3?filename=notification-4-15769.mp3");
+      audio.play();
+    }
+  </script>
+</body>
+</html>
