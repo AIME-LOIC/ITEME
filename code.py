@@ -1,5 +1,5 @@
 import qrcode as qr
-data="http://192.168.1.168:8000/"
+data="https://iteme-charity-wk9f.onrender.com"
 code=qr.make(data)
-code.save("code.png")
+code.save("final_image.png")
 print("done")
