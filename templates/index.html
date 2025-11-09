@@ -5,113 +5,81 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Parent Check-in</title>
   <style>
-    * {
-        box-sizing: border-box;
-    }
-
+    * { box-sizing: border-box; }
     body {
-        font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        text-align: center;
-        padding: 40px 20px;
-        background-color: #e6f7ff;
-        color: #333;
-        margin: 0;
-        min-height: 100vh;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
+      font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      text-align: center;
+      padding: 40px 20px;
+      background-color: #e6f7ff;
+      color: #333;
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
     }
-
     h2 {
-        color: #007bff;
-        margin-bottom: 25px;
-        font-weight: 700;
-        font-size: 1.8rem;
+      color: #007bff;
+      margin-bottom: 25px;
+      font-weight: 700;
+      font-size: 1.8rem;
     }
-
     form {
-        background: white;
-        padding: 30px;
-        border-radius: 12px;
-        width: 350px;
-        max-width: 95%;
-        margin: 20px auto;
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-        border: 1px solid #cceeff;
+      background: white;
+      padding: 30px;
+      border-radius: 12px;
+      width: 350px;
+      max-width: 95%;
+      margin: 20px auto;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+      border: 1px solid #cceeff;
     }
-
     input[type="text"], select {
-        width: 100%;
-        padding: 12px 15px;
-        margin: 10px 0;
-        border: 1px solid #ccc;
-        border-radius: 6px;
-        transition: border-color 0.3s, box-shadow 0.3s;
-        font-size: 16px;
-        appearance: none;
+      width: 100%;
+      padding: 12px 15px;
+      margin: 10px 0;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      transition: border-color 0.3s, box-shadow 0.3s;
+      font-size: 16px;
+      appearance: none;
     }
-
-    input[type="text"]::placeholder {
-        color: #999;
-    }
-
+    input[type="text"]::placeholder { color: #999; }
     input[type="text"]:focus, select:focus {
-        border-color: #007bff;
-        box-shadow: 0 0 5px rgba(0, 123, 255, 0.3);
-        outline: none;
+      border-color: #007bff;
+      box-shadow: 0 0 5px rgba(0,123,255,0.3);
+      outline: none;
     }
-
-    .select-wrapper {
-        position: relative;
-    }
-
+    .select-wrapper { position: relative; }
     .select-wrapper::after {
-        content: '▼';
-        position: absolute;
-        top: 50%;
-        right: 15px;
-        transform: translateY(-50%);
-        color: #555;
-        pointer-events: none;
-        font-size: 0.8rem;
+      content: '▼';
+      position: absolute;
+      top: 50%;
+      right: 15px;
+      transform: translateY(-50%);
+      color: #555;
+      pointer-events: none;
+      font-size: 0.8rem;
     }
-
     button[type="submit"] {
-        width: 100%;
-        padding: 12px;
-        margin-top: 20px;
-        background: #007bff;
-        color: white;
-        border: none;
-        border-radius: 6px;
-        cursor: pointer;
-        font-size: 17px;
-        font-weight: bold;
-        transition: background-color 0.3s, transform 0.1s;
-        box-shadow: 0 4px 10px rgba(0, 123, 255, 0.3);
-    }
-
-    button[type="submit"]:hover {
-        background-color: #0056b3;
-        transform: translateY(-1px);
-    }
-
-    button[type="submit"]:active {
-        transform: translateY(0);
-    }
-
-    a {
-        text-decoration: none;
-        color: #007bff;
-        font-weight: 500;
-    }
-
-    footer {
+      width: 100%;
+      padding: 12px;
       margin-top: 20px;
+      background: #007bff;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 17px;
+      font-weight: bold;
+      transition: background-color 0.3s, transform 0.1s;
+      box-shadow: 0 4px 10px rgba(0,123,255,0.3);
     }
-
-    /* Toast Styles */
+    button[type="submit"]:hover { background-color: #0056b3; transform: translateY(-1px); }
+    button[type="submit"]:active { transform: translateY(0); }
+    a { text-decoration: none; color: #007bff; font-weight: 500; }
+    footer { margin-top: 20px; }
     .toast {
       position: fixed;
       bottom: 30px;
@@ -128,17 +96,12 @@
       box-shadow: 0 5px 15px rgba(0,0,0,0.2);
       z-index: 1000;
     }
-
-    .toast.show {
-      opacity: 1;
-      transform: translateY(0);
-    }
-
+    .toast.show { opacity: 1; transform: translateY(0); }
     @media (max-width: 400px) {
-        body { padding: 10px; }
-        h2 { font-size: 1.5rem; }
-        form { padding: 20px; margin: 10px auto; }
-        input, select, button { padding: 10px; font-size: 15px; }
+      body { padding: 10px; }
+      h2 { font-size: 1.5rem; }
+      form { padding: 20px; margin: 10px auto; }
+      input, select, button { padding: 10px; font-size: 15px; }
     }
   </style>
 </head>
@@ -147,58 +110,94 @@
 
   <form id="arrivalForm" action="/arrival" method="post">
     <input type="text" name="student_name" placeholder="Amazina y'umwana" required>
-    
     <div class="select-wrapper">
-        <select name="class_name" required>
-          <option value="" selected disabled>Hitamo Ishuri ry'umwana</option>
-          <option value="" disabled>O'Leve</option>
-          <option value="S1">S1</option>
-          <option value="S2">S2</option>
-          <option value="S3">S3</option>
-          <option value="" disabled>A'Leve</option>
-          <option value="S4">S4/L3</option>
-          <option value="S5">S5/L4</option>
-          <option value="S6">S6/L5</option>
-        </select>
+      <select name="class_name" required>
+        <option value="" selected disabled>Hitamo Ishuri ry'umwana</option>
+        <option value="" disabled>O'Leve</option>
+        <option value="S1">S1</option>
+        <option value="S2">S2</option>
+        <option value="S3">S3</option>
+        <option value="" disabled>A'Leve</option>
+        <option value="S4">S4/L3</option>
+        <option value="S5">S5/L4</option>
+        <option value="S6">S6/L5</option>
+      </select>
     </div>
-
     <button type="submit">Menyesha Iteme</button>
   </form>
 
   <a href="https://iteme-charity-familt-system.vercel.app/">Menya Byinshi Kw'Iteme</a>
 
   <footer>
-    <h2 style="text-transform: uppercase; font-size: 20px;">powered by <span><a href="https://onepercent-rwanda.onrender.com"style="color: rgb(28, 253, 7);">1%</a></span> & ICF</h2>
+    <h2 style="text-transform: uppercase; font-size: 20px;">
+      powered by <span><a href="https://onepercent-rwanda.onrender.com" style="color: rgb(28, 253, 7);">1%</a></span> & ICF
+    </h2>
   </footer>
 
-  <!-- Toast Notification -->
-  <div id="toast" class="toast">Ubutumwa bwoherejwe, murakoze!</div>
+  <!-- Toast -->
+  <div id="toast" class="toast"></div>
 
+  <!-- Supabase JS -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
+    // 1️⃣ Initialize Supabase
+    const SUPABASE_URL = "https://ruxiswyfpkbatnzcbvog.supabase.co";
+    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ1eGlzd3lmcGtiYXRuemNidm9nIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjI0ODI4NzYsImV4cCI6MjA3ODA1ODg3Nn0.M7lYjHx5rPo3fziZtmi4FP-skH6FVKopCjM5O2246QY"; // Replace with your anon/public key
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    // 2️⃣ Request notification permission
+    if (Notification.permission !== "granted") {
+      Notification.requestPermission();
+    }
+
+    // 3️⃣ Form submission
     const form = document.getElementById('arrivalForm');
     const toast = document.getElementById('toast');
 
     form.addEventListener('submit', (e) => {
-      e.preventDefault(); // Prevent instant reload
-
-      // Send data manually
+      e.preventDefault();
       const formData = new FormData(form);
-      fetch('/arrival', {
-        method: 'POST',
-        body: formData
-      })
-      .then(() => {
-        showToast();
-        form.reset();
-      })
-      .catch(err => console.error(err));
+      fetch('/arrival', { method: 'POST', body: formData })
+        .then(() => {
+          showToast("Ubutumwa bwoherejwe, murakoze!");
+          form.reset();
+        })
+        .catch(err => console.error(err));
     });
 
-    function showToast() {
+    // 4️⃣ Toast function
+    function showToast(message) {
+      toast.textContent = message;
       toast.classList.add('show');
-      setTimeout(() => {
-        toast.classList.remove('show');
-      }, 3000); // hide after 3s
+      setTimeout(() => toast.classList.remove('show'), 3000);
+    }
+
+    // 5️⃣ Play notification sound
+    function playNotificationSound() {
+      const audio = new Audio("https://cdn.pixabay.com/download/audio/2022/03/15/audio_5eac2b9b4f.mp3?filename=notification-4-15769.mp3");
+      audio.play();
+    }
+
+    // 6️⃣ Listen for Supabase status updates
+    supabase
+      .channel('arrival-status')
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'arrival' }, payload => {
+        if(payload.new.status === 'active') {
+          showNotification(`Umwana ${payload.new.student_name} yemejwe!`);
+          playNotificationSound();
+        }
+      })
+      .subscribe();
+
+    // 7️⃣ Show notification + toast
+    function showNotification(message) {
+      if(Notification.permission === "granted") {
+        new Notification("Iteme Notification", {
+          body: message,
+          icon: "https://cdn-icons-png.flaticon.com/512/726/726623.png"
+        });
+      }
+      showToast(message);
     }
   </script>
 </body>

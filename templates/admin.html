@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Admin Dashboard</title>
   <style>
-    /* Styling same as yours (unchanged) */
     * { box-sizing: border-box; }
     body {
       font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -73,7 +72,6 @@
       th, td { padding: 10px 8px; font-size: 0.9rem; }
       button { padding: 6px 10px; font-size: 0.85rem; }
     }
-    /* ✅ Highlight animation for new arrivals */
     .new-row {
       background-color: #c8e6c9;
       animation: fadeOut 2s forwards;
@@ -82,15 +80,13 @@
       from { background-color: #c8e6c9; }
       to { background-color: white; }
     }
-
-    /* 🆕 TOAST NOTIFICATION STYLES */
     #toaster {
       position: fixed;
-      top: -100px; /* Start off-screen */
+      top: -100px;
       left: 50%;
       transform: translateX(-50%);
       padding: 15px 30px;
-      background-color: #dc3545; /* Alert color */
+      background-color: #28a745;
       color: white;
       border-radius: 8px;
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
@@ -102,11 +98,7 @@
       text-align: center;
       letter-spacing: 0.5px;
     }
-
-    #toaster.show {
-      top: 20px; /* Slide down into view */
-      opacity: 1;
-    }
+    #toaster.show { top: 20px; opacity: 1; }
   </style>
 </head>
 <body>
@@ -126,12 +118,16 @@
       </thead>
       <tbody id="tableBody">
         {% for student in arrivals %}
-        <tr>
+        <tr data-id="{{ student.id }}">
           <td>{{ student.student_name }}</td>
           <td>{{ student.class_name }}</td>
           <td>{{ student.status }}</td>
           <td>
-            <button onclick="announce('{{ student.student_name }}', '{{ student.class_name }}')">Announce</button>
+            {% if student.status != 'active' %}
+              <button onclick="activateStudent({{ student.id }})">Activate</button>
+            {% else %}
+              Active
+            {% endif %}
           </td>
         </tr>
         {% endfor %}
@@ -140,31 +136,10 @@
   </div>
 
   <footer>
-    <h1 style="text-transform: uppercase; font-size: 20px; position: fixed; bottom: 0px; right: 700px;">
+    <h1 style="text-transform: uppercase; font-size: 20px; position: fixed; bottom: 0; right: 700px;">
       powered by <span style="color: rgb(28, 253, 7);">1%</span> & ICF
     </h1>
   </footer>
-
-  <script>
-    function announce(name, className) {
-      const msg = new SpeechSynthesisUtterance(
-        `Student ${name} from class ${className}, your parent has arrived`
-      );
-      speechSynthesis.speak(msg);
-    }
-
-    // 🆕 Function to show the toast notification
-    function showToast(message) {
-      const toaster = document.getElementById('toaster');
-      toaster.textContent = message;
-      toaster.classList.add('show');
-
-      // Automatically hide the toast after 3 seconds
-      setTimeout(() => {
-        toaster.classList.remove('show');
-      }, 3000);
-    }
-  </script>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
@@ -172,39 +147,70 @@
     const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ1eGlzd3lmcGtiYXRuemNidm9nIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjI0ODI4NzYsImV4cCI6MjA3ODA1ODg3Nn0.M7lYjHx5rPo3fziZtmi4FP-skH6FVKopCjM5O2246QY";
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
+    function showToast(message, type='success') {
+      const toaster = document.getElementById('toaster');
+      toaster.textContent = message;
+      toaster.style.backgroundColor = type === 'success' ? '#28a745' : '#dc3545';
+      toaster.classList.add('show');
+      setTimeout(() => toaster.classList.remove('show'), 3000);
+    }
+
+    function playNotificationSound() {
+      const audio = new Audio("https://cdn.pixabay.com/download/audio/2022/03/15/audio_5eac2b9b4f.mp3?filename=notification-4-15769.mp3");
+      audio.play();
+    }
+
+    function announce(name, className, button) {
+      const msg = new SpeechSynthesisUtterance(`Student ${name} from class ${className}, your parent has arrived`);
+      speechSynthesis.speak(msg);
+      if(button) button.disabled = true;
+    }
+
+    async function activateStudent(id) {
+      try {
+        const res = await fetch(`/activate/${id}`, { method: "POST" });
+        const data = await res.json();
+        if(data.status === "success") {
+          showToast("✅ Student activated!");
+          const row = document.querySelector(`#tableBody tr[data-id='${id}']`);
+          if(row) row.cells[2].textContent = "active";
+        }
+      } catch(err) {
+        console.error(err);
+        showToast("⚠️ Failed to activate student!", "error");
+      }
+    }
+
+    // Listen to new arrivals
     supabase
       .channel('arrival-changes')
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'arrival' },
-        payload => {
-          console.log('🎉 New arrival:', payload.new);
-          addArrivalRow(payload.new);
-          playNotificationSound();
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'arrival' }, payload => {
+        addArrivalRow(payload.new);
+        playNotificationSound();
+      })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'arrival' }, payload => {
+        const row = document.querySelector(`#tableBody tr[data-id='${payload.new.id}']`);
+        if(row) {
+          row.cells[2].textContent = payload.new.status;
         }
-      )
+        showToast(`✅ ${payload.new.student_name} is now ${payload.new.status}`);
+        playNotificationSound();
+      })
       .subscribe();
 
     function addArrivalRow(data) {
       const tbody = document.getElementById('tableBody');
       const tr = document.createElement('tr');
+      tr.setAttribute('data-id', data.id);
       tr.classList.add('new-row');
       tr.innerHTML = `
         <td>${data.student_name}</td>
         <td>${data.class_name}</td>
         <td>${data.status}</td>
-        <td><button onclick="announce('${data.student_name}', '${data.class_name}')">Announce</button></td>
+        <td><button onclick="announce('${data.student_name}', '${data.class_name}', this)">Announce</button></td>
       `;
       tbody.prepend(tr);
-
-      // 🆕 Show the toast notification with arrival details
       showToast(`🔔 New Arrival: ${data.student_name}`);
-    }
-
-    // ✅ Optional notification sound when new student arrives
-    function playNotificationSound() {
-      const audio = new Audio("https://cdn.pixabay.com/download/audio/2022/03/15/audio_5eac2b9b4f.mp3?filename=notification-4-15769.mp3");
-      audio.play();
     }
   </script>
 </body>

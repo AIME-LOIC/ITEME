@@ -2,6 +2,8 @@ from fastapi import FastAPI, Request, Form
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from threading import Thread
+import time, requests, os, signal
 from config import supabase  # ✅ Import Supabase client
 
 app = FastAPI()
@@ -11,7 +13,6 @@ templates = Jinja2Templates(directory="templates")
 
 # Serve static files
 app.mount("/static", StaticFiles(directory="static"), name="static")
-
 
 # -------------------
 # Routes
@@ -45,3 +46,39 @@ def admin_dashboard(request: Request):
     except Exception as e:
         arrivals = []
     return templates.TemplateResponse("admin.html", {"request": request, "arrivals": arrivals})
+@app.post("/activate/{student_id}")
+def activate_student(student_id: int):
+    try:
+        # Update the status to 'active'
+        supabase.table("arrival").update({"status": "active"}).eq("id", student_id).execute()
+    except Exception as e:
+        return {"error": str(e)}
+    return {"status": "success"}
+
+
+# -------------------
+# Keep-Alive + Auto-Restart Section
+# -------------------
+
+RENDER_URL = "https://iteme-charity-wk9f.onrender.com"  # 🔁 replace with your real Render URL
+
+def keep_alive():
+    """Ping the app every 10 minutes to prevent sleeping (for free plans)."""
+    while True:
+        try:
+            res = requests.get(RENDER_URL, timeout=10)
+            print(f"[KeepAlive] Pinged {RENDER_URL} -> {res.status_code}")
+        except Exception as e:
+            print("[KeepAlive] Ping failed:", e)
+        time.sleep(600)  # every 10 minutes
+
+
+@app.get("/restart")
+def restart_server():
+    """Manual restart endpoint (private use)."""
+    os.kill(os.getpid(), signal.SIGTERM)
+    return {"status": "Server restarting..."}
+
+
+# Start keep-alive thread
+Thread(target=keep_alive, daemon=True).start()
