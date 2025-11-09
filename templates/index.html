@@ -143,11 +143,10 @@
   // 1️⃣ Initialize Supabase
   const SUPABASE_URL = "https://ruxiswyfpkbatnzcbvog.supabase.co";
   const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ1eGlzd3lmcGtiYXRuemNidm9nIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjI0ODI4NzYsImV4cCI6MjA3ODA1ODg3Nn0.M7lYjHx5rPo3fziZtmi4FP-skH6FVKopCjM5O2246QY";
-  const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
   // 2️⃣ Toast element
   const toast = document.getElementById('toast');
-
   function showToast(message, type='success') {
     toast.textContent = message;
     toast.style.backgroundColor = type === 'success' ? '#28a745' : '#dc3545';
@@ -182,34 +181,38 @@
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     const formData = new FormData(form);
-
     try {
       const res = await fetch('/arrival', { method: 'POST', body: formData });
       if(res.ok) {
         showToast("Ubutumwa bwoherejwe, murakoze!");
         form.reset();
       } else {
-        showToast("❌ Hari ikibazo kohereza ubutumwa", "error");
+        showToast("❌ Hari ikibazo mu kohereza ubutumwa", "error");
       }
     } catch(err) {
       console.error(err);
-      showToast("❌ Hari ikibazo kohereza ubutumwa", "error");
+      showToast("❌ Hari ikibazo mu kohereza ubutumwa", "error");
     }
   });
 
-  // 7️⃣ Subscribe to Realtime updates (status = active)
-  supabase
-    .channel('arrival-changes')  // must match admin channel
-    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'arrival' }, payload => {
-      if(payload.new.status === 'active') {
-        showNotification(`Umwana ${payload.new.student_name} yemejwe!`);
+  // 7️⃣ Subscribe to realtime updates for the 'arrival' table
+  const subscription = supabase
+    .channel('public:arrival') // recommended format: 'schema:table'
+    .on(
+      'postgres_changes',
+      { event: 'UPDATE', schema: 'public', table: 'arrival', filter: 'status=eq.active' },
+      payload => {
+        showNotification(`Umwana ${payload.new.student_name} yahageze!`);
         playNotificationSound();
       }
-    })
-    .subscribe()
-    .then(() => console.log('✅ Subscribed to arrival updates'))
-    .catch(err => console.error('❌ Realtime subscription failed:', err));
+    )
+    .subscribe();
+
+  subscription
+    .on('error', err => console.error('❌ Realtime error:', err))
+    .on('open', () => console.log('✅ Realtime subscription active'));
 </script>
+
 
 </body>
 </html>
