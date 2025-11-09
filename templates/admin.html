@@ -167,19 +167,20 @@
     }
 
     async function activateStudent(id) {
-      try {
-        const res = await fetch(`/activate/${id}`, { method: "POST" });
-        const data = await res.json();
-        if(data.status === "success") {
-          showToast("✅ Student activated!");
-          const row = document.querySelector(`#tableBody tr[data-id='${id}']`);
-          if(row) row.cells[2].textContent = "active";
-        }
-      } catch(err) {
-        console.error(err);
-        showToast("⚠️ Failed to activate student!", "error");
-      }
+  try {
+    const res = await fetch(`/activate/${id}`, { method: "POST" });
+    const data = await res.json();
+    if(data.status === "success") {
+      showToast("✅ Student activated!");
+      const row = document.querySelector(`#tableBody tr[data-id='${id}']`);
+      if(row) row.cells[2].textContent = "active";
     }
+  } catch(err) {
+    console.error(err);
+    showToast("⚠️ Failed to activate student!", "error");
+  }
+}
+
 
     // Listen to new arrivals
     supabase

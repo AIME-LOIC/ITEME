@@ -49,11 +49,13 @@ def admin_dashboard(request: Request):
 @app.post("/activate/{student_id}")
 def activate_student(student_id: int):
     try:
-        # Update the status to 'active'
-        supabase.table("arrival").update({"status": "active"}).eq("id", student_id).execute()
+        response = supabase.table("arrival").update({"status": "active"}).eq("id", student_id).execute()
+        if response.error:
+            return {"status": "error", "message": response.error.message}
+        return {"status": "success", "data": response.data}
     except Exception as e:
-        return {"error": str(e)}
-    return {"status": "success"}
+        return {"status": "error", "message": str(e)}
+
 
 
 # -------------------
