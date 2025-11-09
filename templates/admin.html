@@ -73,7 +73,7 @@
       th, td { padding: 10px 8px; font-size: 0.9rem; }
       button { padding: 6px 10px; font-size: 0.85rem; }
     }
-    /* ✅ Add a highlight animation for new arrivals */
+    /* ✅ Highlight animation for new arrivals */
     .new-row {
       background-color: #c8e6c9;
       animation: fadeOut 2s forwards;
@@ -82,10 +82,37 @@
       from { background-color: #c8e6c9; }
       to { background-color: white; }
     }
+
+    /* 🆕 TOAST NOTIFICATION STYLES */
+    #toaster {
+      position: fixed;
+      top: -100px; /* Start off-screen */
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 15px 30px;
+      background-color: #dc3545; /* Alert color */
+      color: white;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      z-index: 1000;
+      opacity: 0;
+      transition: top 0.5s ease-out, opacity 0.5s ease-out;
+      font-weight: 600;
+      min-width: 250px;
+      text-align: center;
+      letter-spacing: 0.5px;
+    }
+
+    #toaster.show {
+      top: 20px; /* Slide down into view */
+      opacity: 1;
+    }
   </style>
 </head>
 <body>
   <h2>Arrivals Management Dashboard</h2>
+
+  <div id="toaster"></div>
 
   <div class="table-responsive">
     <table id="arrivalsTable">
@@ -125,9 +152,20 @@
       );
       speechSynthesis.speak(msg);
     }
+
+    // 🆕 Function to show the toast notification
+    function showToast(message) {
+      const toaster = document.getElementById('toaster');
+      toaster.textContent = message;
+      toaster.classList.add('show');
+
+      // Automatically hide the toast after 3 seconds
+      setTimeout(() => {
+        toaster.classList.remove('show');
+      }, 3000);
+    }
   </script>
 
-  <!-- ✅ Supabase Realtime -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
     const SUPABASE_URL = "https://ruxiswyfpkbatnzcbvog.supabase.co";
@@ -158,6 +196,9 @@
         <td><button onclick="announce('${data.student_name}', '${data.class_name}')">Announce</button></td>
       `;
       tbody.prepend(tr);
+
+      // 🆕 Show the toast notification with arrival details
+      showToast(`🔔 New Arrival: ${data.student_name}`);
     }
 
     // ✅ Optional notification sound when new student arrives
