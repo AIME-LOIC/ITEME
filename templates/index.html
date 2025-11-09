@@ -19,45 +19,96 @@
       align-items: center;
       justify-content: center;
     }
-    h2 { color: #007bff; margin-bottom: 25px; font-weight: 700; font-size: 1.8rem; }
+    h2 {
+      color: #007bff;
+      margin-bottom: 25px;
+      font-weight: 700;
+      font-size: 1.8rem;
+    }
     form {
-      background: white; padding: 30px; border-radius: 12px; width: 350px;
-      max-width: 95%; margin: 20px auto; box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+      background: white;
+      padding: 30px;
+      border-radius: 12px;
+      width: 350px;
+      max-width: 95%;
+      margin: 20px auto;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.1);
       border: 1px solid #cceeff;
     }
     input[type="text"], select {
-      width: 100%; padding: 12px 15px; margin: 10px 0; border: 1px solid #ccc;
-      border-radius: 6px; transition: border-color 0.3s, box-shadow 0.3s; font-size: 16px;
+      width: 100%;
+      padding: 12px 15px;
+      margin: 10px 0;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      transition: border-color 0.3s, box-shadow 0.3s;
+      font-size: 16px;
       appearance: none;
     }
     input[type="text"]::placeholder { color: #999; }
-    input[type="text"]:focus, select:focus { border-color: #007bff; box-shadow: 0 0 5px rgba(0,123,255,0.3); outline: none; }
+    input[type="text"]:focus, select:focus {
+      border-color: #007bff;
+      box-shadow: 0 0 5px rgba(0,123,255,0.3);
+      outline: none;
+    }
     .select-wrapper { position: relative; }
-    .select-wrapper::after { content: '▼'; position: absolute; top: 50%; right: 15px; transform: translateY(-50%); color: #555; pointer-events: none; font-size: 0.8rem; }
+    .select-wrapper::after {
+      content: '▼';
+      position: absolute;
+      top: 50%;
+      right: 15px;
+      transform: translateY(-50%);
+      color: #555;
+      pointer-events: none;
+      font-size: 0.8rem;
+    }
     button[type="submit"] {
-      width: 100%; padding: 12px; margin-top: 20px; background: #007bff; color: white;
-      border: none; border-radius: 6px; cursor: pointer; font-size: 17px; font-weight: bold;
-      transition: background-color 0.3s, transform 0.1s; box-shadow: 0 4px 10px rgba(0,123,255,0.3);
+      width: 100%;
+      padding: 12px;
+      margin-top: 20px;
+      background: #007bff;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 17px;
+      font-weight: bold;
+      transition: background-color 0.3s, transform 0.1s;
+      box-shadow: 0 4px 10px rgba(0,123,255,0.3);
     }
     button[type="submit"]:hover { background-color: #0056b3; transform: translateY(-1px); }
     button[type="submit"]:active { transform: translateY(0); }
     a { text-decoration: none; color: #007bff; font-weight: 500; }
     footer { margin-top: 20px; }
     .toast {
-      position: fixed; bottom: 30px; right: 30px; background: #28a745; color: white;
-      padding: 15px 25px; border-radius: 8px; font-weight: 500; font-size: 16px;
-      opacity: 0; transform: translateY(20px); transition: all 0.4s ease;
-      box-shadow: 0 5px 15px rgba(0,0,0,0.2); z-index: 1000;
+      position: fixed;
+      bottom: 30px;
+      right: 30px;
+      background: #28a745;
+      color: white;
+      padding: 15px 25px;
+      border-radius: 8px;
+      font-weight: 500;
+      font-size: 16px;
+      opacity: 0;
+      transform: translateY(20px);
+      transition: all 0.4s ease;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+      z-index: 1000;
     }
     .toast.show { opacity: 1; transform: translateY(0); }
-    @media (max-width: 400px) { body { padding: 10px; } h2 { font-size: 1.5rem; } form { padding: 20px; margin: 10px auto; } input, select, button { padding: 10px; font-size: 15px; } }
+    @media (max-width: 400px) {
+      body { padding: 10px; }
+      h2 { font-size: 1.5rem; }
+      form { padding: 20px; margin: 10px auto; }
+      input, select, button { padding: 10px; font-size: 15px; }
+    }
   </style>
 </head>
 <body>
-
   <h2>Menyesha Umwana cg Shaka umwana kuri visite <br> Iteme</h2>
 
-  <form id="arrivalForm">
+  <form id="arrivalForm" action="/arrival" method="post">
     <input type="text" name="student_name" placeholder="Amazina y'umwana" required>
     <div class="select-wrapper">
       <select name="class_name" required>
@@ -87,53 +138,82 @@
   <div id="toast" class="toast"></div>
 
   <!-- Supabase JS -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script>
-    const SUPABASE_URL = "https://ruxiswyfpkbatnzcbvog.supabase.co";
-    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ1eGlzd3lmcGtiYXRuemNidm9nIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjI0ODI4NzYsImV4cCI6MjA3ODA1ODg3Nn0.M7lYjHx5rPo3fziZtmi4FP-skH6FVKopCjM5O2246QY"; // replace with your anon/public key
-    const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-
-    const toast = document.getElementById('toast');
-    function showToast(msg, type='success') {
-      toast.textContent = msg;
-      toast.style.backgroundColor = type === 'success' ? '#28a745' : '#dc3545';
-      toast.classList.add('show');
-      setTimeout(() => toast.classList.remove('show'), 3000);
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+  // 1️⃣ Request notification permission first
+  async function requestNotificationPermission() {
+    if(Notification.permission !== "granted") {
+      const permission = await Notification.requestPermission();
+      if(permission !== "granted") console.warn("Notifications are blocked!");
     }
+  }
+  requestNotificationPermission();
 
-    // Request notification permission
-    if(Notification.permission !== "granted") Notification.requestPermission();
+  // 2️⃣ Initialize Supabase
+  const SUPABASE_URL = "https://ruxiswyfpkbatnzcbvog.supabase.co";
+  const SUPABASE_KEY = "YOUR_ANON_KEY_HERE"; // Replace with your anon/public key
+  const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    let parentStudentName = '';
+  // 3️⃣ Toast & Notification functions
+  const toast = document.getElementById('toast');
 
-    document.getElementById('arrivalForm').addEventListener('submit', e => {
-      e.preventDefault();
-      parentStudentName = e.target.student_name.value.trim();
-      showToast(`Ubutumwa bwoherejwe: ${parentStudentName}`);
-      e.target.reset();
-    });
+  function showToast(message, type='success') {
+    toast.textContent = message;
+    toast.style.backgroundColor = type === 'success' ? '#28a745' : '#dc3545';
+    toast.classList.add('show');
+    setTimeout(() => toast.classList.remove('show'), 3000);
+  }
 
-    // Realtime subscription filtered by student name
-    supabase.channel('arrival-updates')
-      .on('postgres_changes', {
-        event: 'UPDATE',
-        schema: 'public',
-        table: 'arrival'
-      }, payload => {
-        if(payload.new.student_name === parentStudentName && payload.new.status === 'active') {
-          if(Notification.permission === "granted") {
-            new Notification("Iteme Notification", {
-              body: `Umwana ${payload.new.student_name} yemejwe!`,
-              icon: "https://cdn-icons-png.flaticon.com/512/726/726623.png"
-            });
-          }
-          showToast(`Umwana ${payload.new.student_name} yemejwe!`);
-        }
-      })
-      .subscribe()
-      .then(() => console.log("✅ Subscribed to updates"))
-      .catch(err => console.error("❌ Subscription failed:", err));
-  </script>
+  function playNotificationSound() {
+    const audio = new Audio("https://cdn.pixabay.com/download/audio/2022/03/15/audio_5eac2b9b4f.mp3?filename=notification-4-15769.mp3");
+    audio.play();
+  }
+
+  function showNotification(message) {
+    if(Notification.permission === "granted") {
+      new Notification("Iteme Notification", {
+        body: message,
+        icon: "https://cdn-icons-png.flaticon.com/512/726/726623.png"
+      });
+    }
+    showToast(message);
+    playNotificationSound();
+  }
+
+  // 4️⃣ Handle form submission
+  const form = document.getElementById('arrivalForm');
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const formData = new FormData(form);
+    try {
+      const res = await fetch('/arrival', { method: 'POST', body: formData });
+      if(res.ok){
+        showToast("Ubutumwa bwoherejwe, murakoze!");
+        form.reset();
+      } else {
+        showToast("❌ Hari ikibazo kohereza ubutumwa", "error");
+      }
+    } catch(err){
+      console.error(err);
+      showToast("❌ Hari ikibazo kohereza ubutumwa", "error");
+    }
+  });
+
+  // 5️⃣ Subscribe to Supabase Realtime updates
+  supabase.channel('arrival-updates') // channel name is arbitrary
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'arrival' }, payload => {
+      console.log("Realtime payload:", payload); // debug log
+      if(payload.new.status === 'active') {
+        showNotification(`Umwana ${payload.new.student_name} yemejwe!`);
+      }
+    })
+    .subscribe()
+    .then(() => console.log('✅ Subscribed to arrival updates'))
+    .catch(err => console.error('❌ Realtime subscription failed:', err));
+</script>
+
+
+
 
 </body>
 </html>
