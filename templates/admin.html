@@ -199,19 +199,28 @@
       .subscribe();
 
     function addArrivalRow(data) {
-      const tbody = document.getElementById('tableBody');
-      const tr = document.createElement('tr');
-      tr.setAttribute('data-id', data.id);
-      tr.classList.add('new-row');
-      tr.innerHTML = `
-        <td>${data.student_name}</td>
-        <td>${data.class_name}</td>
-        <td>${data.status}</td>
-        <td><button onclick="announce('${data.student_name}', '${data.class_name}', this)">Announce</button></td>
-      `;
-      tbody.prepend(tr);
-      showToast(`🔔 New Arrival: ${data.student_name}`);
-    }
+  const tbody = document.getElementById('tableBody');
+  const tr = document.createElement('tr');
+  tr.setAttribute('data-id', data.id);
+  tr.classList.add('new-row');
+
+  let actionCell = '';
+  if (data.status !== 'active') {
+    actionCell = `<button onclick="activateStudent(${data.id})">Activate</button>`;
+  } else {
+    actionCell = `<button onclick="announce('${data.student_name}', '${data.class_name}', this)">Announce</button>`;
+  }
+
+  tr.innerHTML = `
+    <td>${data.student_name}</td>
+    <td>${data.class_name}</td>
+    <td>${data.status}</td>
+    <td>${actionCell}</td>
+  `;
+  tbody.prepend(tr);
+  showToast(`🔔 New Arrival: ${data.student_name}`);
+}
+
   </script>
 </body>
 </html>
