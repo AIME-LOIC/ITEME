@@ -140,12 +140,25 @@
   <!-- Supabase JS -->
  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
-  // 1️⃣ Initialize Supabase
+  // 1️⃣ Request notification permission on page load
+  document.addEventListener('DOMContentLoaded', () => {
+    if (Notification.permission !== "granted") {
+      Notification.requestPermission().then(permission => {
+        if(permission === "granted"){
+          console.log("✅ Notification permission granted");
+        } else {
+          console.log("⚠️ Notification permission denied");
+        }
+      });
+    }
+  });
+
+  // 2️⃣ Initialize Supabase
   const SUPABASE_URL = "https://ruxiswyfpkbatnzcbvog.supabase.co";
-  const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ1eGlzd3lmcGtiYXRuemNidm9nIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjI0ODI4NzYsImV4cCI6MjA3ODA1ODg3Nn0.M7lYjHx5rPo3fziZtmi4FP-skH6FVKopCjM5O2246QY";
+  const SUPABASE_KEY = "YOUR_SUPABASE_ANON_KEY";
   const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-  // 2️⃣ Toast element
+  // 3️⃣ Toast element
   const toast = document.getElementById('toast');
   function showToast(message, type='success') {
     toast.textContent = message;
@@ -154,13 +167,13 @@
     setTimeout(() => toast.classList.remove('show'), 3000);
   }
 
-  // 3️⃣ Notification sound
+  // 4️⃣ Notification sound
   function playNotificationSound() {
     const audio = new Audio("https://cdn.pixabay.com/download/audio/2022/03/15/audio_5eac2b9b4f.mp3?filename=notification-4-15769.mp3");
     audio.play();
   }
 
-  // 4️⃣ Browser notification
+  // 5️⃣ Show browser notification
   function showNotification(message) {
     if(Notification.permission === "granted") {
       new Notification("Iteme Notification", {
@@ -171,12 +184,7 @@
     showToast(message);
   }
 
-  // 5️⃣ Request notification permission
-  if (Notification.permission !== "granted") {
-    Notification.requestPermission();
-  }
-
-  // 6️⃣ Handle form submission
+  // 6️⃣ Form submission
   const form = document.getElementById('arrivalForm');
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -187,22 +195,22 @@
         showToast("Ubutumwa bwoherejwe, murakoze!");
         form.reset();
       } else {
-        showToast("❌ Hari ikibazo mu kohereza ubutumwa", "error");
+        showToast("❌ Hari ikibazo kohereza ubutumwa", "error");
       }
     } catch(err) {
       console.error(err);
-      showToast("❌ Hari ikibazo mu kohereza ubutumwa", "error");
+      showToast("❌ Hari ikibazo kohereza ubutumwa", "error");
     }
   });
 
-  // 7️⃣ Subscribe to realtime updates for the 'arrival' table
+  // 7️⃣ Realtime subscription
   const subscription = supabase
-    .channel('public:arrival') // recommended format: 'schema:table'
+    .channel('public:arrival')
     .on(
       'postgres_changes',
       { event: 'UPDATE', schema: 'public', table: 'arrival', filter: 'status=eq.active' },
       payload => {
-        showNotification(`Umwana ${payload.new.student_name} yahageze!`);
+        showNotification(`Umwana ${payload.new.student_name} yemejwe!`);
         playNotificationSound();
       }
     )
@@ -212,6 +220,7 @@
     .on('error', err => console.error('❌ Realtime error:', err))
     .on('open', () => console.log('✅ Realtime subscription active'));
 </script>
+
 
 
 </body>
