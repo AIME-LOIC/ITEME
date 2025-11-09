@@ -138,67 +138,78 @@
   <div id="toast" class="toast"></div>
 
   <!-- Supabase JS -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script>
-    // 1️⃣ Initialize Supabase
-    const SUPABASE_URL = "https://ruxiswyfpkbatnzcbvog.supabase.co";
-    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ1eGlzd3lmcGtiYXRuemNidm9nIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjI0ODI4NzYsImV4cCI6MjA3ODA1ODg3Nn0.M7lYjHx5rPo3fziZtmi4FP-skH6FVKopCjM5O2246QY"; // Replace with your anon/public key
-    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+ <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+  // 1️⃣ Initialize Supabase
+  const SUPABASE_URL = "https://ruxiswyfpkbatnzcbvog.supabase.co";
+  const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ1eGlzd3lmcGtiYXRuemNidm9nIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjI0ODI4NzYsImV4cCI6MjA3ODA1ODg3Nn0.M7lYjHx5rPo3fziZtmi4FP-skH6FVKopCjM5O2246QY";
+  const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    // 2️⃣ Request notification permission
-    if (Notification.permission !== "granted") {
-      Notification.requestPermission();
+  // 2️⃣ Toast element
+  const toast = document.getElementById('toast');
+
+  function showToast(message, type='success') {
+    toast.textContent = message;
+    toast.style.backgroundColor = type === 'success' ? '#28a745' : '#dc3545';
+    toast.classList.add('show');
+    setTimeout(() => toast.classList.remove('show'), 3000);
+  }
+
+  // 3️⃣ Notification sound
+  function playNotificationSound() {
+    const audio = new Audio("https://cdn.pixabay.com/download/audio/2022/03/15/audio_5eac2b9b4f.mp3?filename=notification-4-15769.mp3");
+    audio.play();
+  }
+
+  // 4️⃣ Browser notification
+  function showNotification(message) {
+    if(Notification.permission === "granted") {
+      new Notification("Iteme Notification", {
+        body: message,
+        icon: "https://cdn-icons-png.flaticon.com/512/726/726623.png"
+      });
     }
+    showToast(message);
+  }
 
-    // 3️⃣ Form submission
-    const form = document.getElementById('arrivalForm');
-    const toast = document.getElementById('toast');
+  // 5️⃣ Request notification permission
+  if (Notification.permission !== "granted") {
+    Notification.requestPermission();
+  }
 
-    form.addEventListener('submit', (e) => {
-      e.preventDefault();
-      const formData = new FormData(form);
-      fetch('/arrival', { method: 'POST', body: formData })
-        .then(() => {
-          showToast("Ubutumwa bwoherejwe, murakoze!");
-          form.reset();
-        })
-        .catch(err => console.error(err));
-    });
+  // 6️⃣ Handle form submission
+  const form = document.getElementById('arrivalForm');
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const formData = new FormData(form);
 
-    // 4️⃣ Toast function
-    function showToast(message) {
-      toast.textContent = message;
-      toast.classList.add('show');
-      setTimeout(() => toast.classList.remove('show'), 3000);
-    }
-
-    // 5️⃣ Play notification sound
-    function playNotificationSound() {
-      const audio = new Audio("https://cdn.pixabay.com/download/audio/2022/03/15/audio_5eac2b9b4f.mp3?filename=notification-4-15769.mp3");
-      audio.play();
-    }
-
-    // 6️⃣ Listen for Supabase status updates
-    supabase
-      .channel('arrival-status')
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'arrival' }, payload => {
-        if(payload.new.status === 'active') {
-          showNotification(`Umwana ${payload.new.student_name} yemejwe!`);
-          playNotificationSound();
-        }
-      })
-      .subscribe();
-
-    // 7️⃣ Show notification + toast
-    function showNotification(message) {
-      if(Notification.permission === "granted") {
-        new Notification("Iteme Notification", {
-          body: message,
-          icon: "https://cdn-icons-png.flaticon.com/512/726/726623.png"
-        });
+    try {
+      const res = await fetch('/arrival', { method: 'POST', body: formData });
+      if(res.ok) {
+        showToast("Ubutumwa bwoherejwe, murakoze!");
+        form.reset();
+      } else {
+        showToast("❌ Hari ikibazo kohereza ubutumwa", "error");
       }
-      showToast(message);
+    } catch(err) {
+      console.error(err);
+      showToast("❌ Hari ikibazo kohereza ubutumwa", "error");
     }
-  </script>
+  });
+
+  // 7️⃣ Subscribe to Realtime updates (status = active)
+  supabase
+    .channel('arrival-changes')  // must match admin channel
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'arrival' }, payload => {
+      if(payload.new.status === 'active') {
+        showNotification(`Umwana ${payload.new.student_name} yemejwe!`);
+        playNotificationSound();
+      }
+    })
+    .subscribe()
+    .then(() => console.log('✅ Subscribed to arrival updates'))
+    .catch(err => console.error('❌ Realtime subscription failed:', err));
+</script>
+
 </body>
 </html>
