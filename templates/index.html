@@ -138,28 +138,25 @@
   <div id="toast" class="toast"></div>
 
   <!-- Supabase JS -->
- <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
-  // 1️⃣ Request notification permission on page load
-  document.addEventListener('DOMContentLoaded', () => {
-    if (Notification.permission !== "granted") {
-      Notification.requestPermission().then(permission => {
-        if(permission === "granted"){
-          console.log("✅ Notification permission granted");
-        } else {
-          console.log("⚠️ Notification permission denied");
-        }
-      });
+  // 1️⃣ Request notification permission first
+  async function requestNotificationPermission() {
+    if(Notification.permission !== "granted") {
+      const permission = await Notification.requestPermission();
+      if(permission !== "granted") console.warn("Notifications are blocked!");
     }
-  });
+  }
+  requestNotificationPermission();
 
   // 2️⃣ Initialize Supabase
   const SUPABASE_URL = "https://ruxiswyfpkbatnzcbvog.supabase.co";
-  const SUPABASE_KEY = "YOUR_SUPABASE_ANON_KEY";
-  const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  const SUPABASE_KEY = "YOUR_ANON_KEY_HERE"; // Replace with your anon/public key
+  const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-  // 3️⃣ Toast element
+  // 3️⃣ Toast & Notification functions
   const toast = document.getElementById('toast');
+
   function showToast(message, type='success') {
     toast.textContent = message;
     toast.style.backgroundColor = type === 'success' ? '#28a745' : '#dc3545';
@@ -167,13 +164,11 @@
     setTimeout(() => toast.classList.remove('show'), 3000);
   }
 
-  // 4️⃣ Notification sound
   function playNotificationSound() {
     const audio = new Audio("https://cdn.pixabay.com/download/audio/2022/03/15/audio_5eac2b9b4f.mp3?filename=notification-4-15769.mp3");
     audio.play();
   }
 
-  // 5️⃣ Show browser notification
   function showNotification(message) {
     if(Notification.permission === "granted") {
       new Notification("Iteme Notification", {
@@ -182,44 +177,41 @@
       });
     }
     showToast(message);
+    playNotificationSound();
   }
 
-  // 6️⃣ Form submission
+  // 4️⃣ Handle form submission
   const form = document.getElementById('arrivalForm');
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     const formData = new FormData(form);
     try {
       const res = await fetch('/arrival', { method: 'POST', body: formData });
-      if(res.ok) {
+      if(res.ok){
         showToast("Ubutumwa bwoherejwe, murakoze!");
         form.reset();
       } else {
         showToast("❌ Hari ikibazo kohereza ubutumwa", "error");
       }
-    } catch(err) {
+    } catch(err){
       console.error(err);
       showToast("❌ Hari ikibazo kohereza ubutumwa", "error");
     }
   });
 
-  // 7️⃣ Realtime subscription
-  const subscription = supabase
-    .channel('public:arrival')
-    .on(
-      'postgres_changes',
-      { event: 'UPDATE', schema: 'public', table: 'arrival', filter: 'status=eq.active' },
-      payload => {
+  // 5️⃣ Subscribe to Supabase Realtime updates
+  supabase.channel('arrival-updates') // channel name is arbitrary
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'arrival' }, payload => {
+      console.log("Realtime payload:", payload); // debug log
+      if(payload.new.status === 'active') {
         showNotification(`Umwana ${payload.new.student_name} yemejwe!`);
-        playNotificationSound();
       }
-    )
-    .subscribe();
-
-  subscription
-    .on('error', err => console.error('❌ Realtime error:', err))
-    .on('open', () => console.log('✅ Realtime subscription active'));
+    })
+    .subscribe()
+    .then(() => console.log('✅ Subscribed to arrival updates'))
+    .catch(err => console.error('❌ Realtime subscription failed:', err));
 </script>
+
 
 
 
