@@ -49,9 +49,8 @@ def add_arrival(
 @app.get("/admin")
 def admin_dashboard(request: Request):
    result = supabase.table("arrival").select("*").order("id", desc=True).execute()
-    arrivals = result.data
-
-    return templates.TemplateResponse("admin.html", {"request": request, "arrivals": arrivals})
+   arrivals = result.data
+   return templates.TemplateResponse("admin.html", {"request": request, "arrivals": arrivals})
 @app.post("/activate/{student_id}")
 def activate_student(student_id: int):
     try:
