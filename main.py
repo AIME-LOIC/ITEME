@@ -22,20 +22,25 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 def parent_form(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
 
-
 @app.post("/arrival")
-def add_arrival(request: Request, student_name: str = Form(...), class_name: str = Form(...)):
-    try:
-        data = {
-            "student_name": student_name,
-            "class_name": class_name,
-            "status": "waiting"
-        }
-       result = supabase.table("arrival").insert(data).select("*").execute()
-    except Exception as e:
-        return {"error": str(e)}
+def add_arrival(
+    request: Request,
+    student_name: str = Form(...),
+    class_name: str = Form(...)
+):
+    data = {
+        "student_name": student_name,
+        "class_name": class_name,
+        "status": "waiting"
+    }
+
+    result = supabase.table("arrival").insert(data).select("*").execute()
+
+    if result.error:
+        return {"error": result.error.message}
 
     return RedirectResponse("/", status_code=303)
+
 
 
 @app.get("/admin")
