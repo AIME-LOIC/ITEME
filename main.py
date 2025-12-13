@@ -34,23 +34,23 @@ def add_arrival(
         "status": "waiting"
     }
 
-    try:
-        result = supabase.table("arrival").insert(data).select("*").execute()
-    except Exception as e:
-        return {"error": str(e)}
+    result = supabase.table("arrival").insert(data).select("*").execute()
+    print(result)  # debug output
+
+    if result.error:
+        return {"error": result.error.message}
 
     return RedirectResponse("/", status_code=303)
 
 
 
 
+
 @app.get("/admin")
 def admin_dashboard(request: Request):
-    try:
-        result = supabase.table("arrival").select("*").order("id", desc=True).execute()
-        arrivals = result.data
-    except Exception as e:
-        arrivals = []
+   result = supabase.table("arrival").select("*").order("id", desc=True).execute()
+    arrivals = result.data
+
     return templates.TemplateResponse("admin.html", {"request": request, "arrivals": arrivals})
 @app.post("/activate/{student_id}")
 def activate_student(student_id: int):
