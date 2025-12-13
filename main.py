@@ -34,14 +34,13 @@ def add_arrival(
         "status": "waiting"
     }
 
-   try:
-    result = supabase.table("arrival").insert(data).select("*").execute()
-   except Exception as e:
-    return {"error": str(e)}
-
-
+    try:
+        result = supabase.table("arrival").insert(data).select("*").execute()
+    except Exception as e:
+        return {"error": str(e)}
 
     return RedirectResponse("/", status_code=303)
+
 
 
 
