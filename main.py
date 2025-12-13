@@ -31,7 +31,7 @@ def add_arrival(request: Request, student_name: str = Form(...), class_name: str
             "class_name": class_name,
             "status": "waiting"
         }
-        supabase.table("arrival").insert(data).execute()
+       result = supabase.table("arrival").insert(data).select("*").execute()
     except Exception as e:
         return {"error": str(e)}
 
