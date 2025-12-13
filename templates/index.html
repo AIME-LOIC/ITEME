@@ -201,16 +201,29 @@
   });
 
   // 5️⃣ Subscribe to Supabase Realtime updates
-  supabase.channel('arrival-updates') // channel name is arbitrary
-    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'arrival' }, payload => {
-      console.log("Realtime payload:", payload); // debug log
-      if(payload.new.status === 'active') {
-        showNotification(`Umwana ${payload.new.student_name} yemejwe!`);
+ const channel = supabase
+  .channel('arrival-updates')
+  .on(
+    'postgres_changes',
+    { event: 'UPDATE', schema: 'public', table: 'arrival' },
+    payload => {
+      console.log("Realtime payload:", payload)
+
+      if (payload.new.status === 'active') {
+        showNotification(`Umwana ${payload.new.student_name} yemejwe!`)
       }
-    })
-    .subscribe()
-    .then(() => console.log('✅ Subscribed to arrival updates'))
-    .catch(err => console.error('❌ Realtime subscription failed:', err));
+    }
+  )
+  .subscribe(status => {
+    if (status === 'SUBSCRIBED') {
+      console.log('✅ Subscribed to arrival updates')
+    }
+
+    if (status === 'CHANNEL_ERROR') {
+      console.error('❌ Realtime channel error')
+    }
+  })
+
 </script>
 
 
