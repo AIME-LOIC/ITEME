@@ -5,4 +5,8 @@ supabase==2.24.0
 python-dotenv
 python-multipart
 requests
-# ...any other dependencies you need
+psycopg2-binary
+flask
+openpyxl
+reportlab
+python-docx
