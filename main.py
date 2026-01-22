@@ -7,6 +7,7 @@ import time, requests, os, signal
 from config import supabase  # ✅ Import Supabase client
 from payment import app as payment_app  # ✅ Import payment app
 
+# ✅ FastAPI unified application (no Flask dependency)
 app = FastAPI()
 
 # Serve templates
