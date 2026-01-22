@@ -5,6 +5,7 @@ from fastapi.templating import Jinja2Templates
 from threading import Thread
 import time, requests, os, signal
 from config import supabase  # ✅ Import Supabase client
+from payment import app as payment_app  # ✅ Import payment app
 
 app = FastAPI()
 
@@ -15,11 +16,12 @@ templates = Jinja2Templates(directory="templates")
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # -------------------
-# Routes
+# Routes (define BEFORE mounting payment app)
 # -------------------
 
-@app.get("/")
-def parent_form(request: Request):
+@app.get("/arrival")
+def arrival_form(request: Request):
+    """Display the arrival submission form."""
     return templates.TemplateResponse("index.html", {"request": request})
 
 @app.post("/arrival")
@@ -28,40 +30,46 @@ def add_arrival(
     student_name: str = Form(...),
     class_name: str = Form(...)
 ):
-    data = {
-        "student_name": student_name,
-        "class_name": class_name,
-        "status": "waiting"
-    }
+    try:
+        data = {
+            "student_name": student_name,
+            "class_name": class_name,
+            "status": "waiting"
+        }
 
-    result = supabase.table("arrival").insert(data).select("*").execute()
-    print(result)  # debug output
+        result = supabase.table("arrival").insert(data).execute()
+        print(result)  # debug output
 
-    if result.error:
-        return {"error": result.error.message}
+        return RedirectResponse("/", status_code=303)
+    except Exception as e:
+        return {"error": str(e)}
 
-    return RedirectResponse("/", status_code=303)
-
-
-
-
-
-@app.get("/admin")
-def admin_dashboard(request: Request):
-   result = supabase.table("arrival").select("*").order("id", desc=True).execute()
-   arrivals = result.data
+@app.get("/arrival/admin")
+def arrival_admin_dashboard(request: Request):
+   try:
+       result = supabase.table("arrival").select("*").order("id", desc=True).execute()
+       arrivals = result.data if result.data else []
+   except Exception as e:
+       print(f"Error fetching arrivals: {e}")
+       arrivals = []
    return templates.TemplateResponse("admin.html", {"request": request, "arrivals": arrivals})
+
 @app.post("/activate/{student_id}")
 def activate_student(student_id: int):
     try:
         response = supabase.table("arrival").update({"status": "active"}).eq("id", student_id).execute()
-        if response.error:
-            return {"status": "error", "message": response.error.message}
         return {"status": "success", "data": response.data}
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
+@app.get("/restart")
+def restart_server():
+    """Manual restart endpoint (private use)."""
+    os.kill(os.getpid(), signal.SIGTERM)
+    return {"status": "Server restarting..."}
 
+# Mount payment app at root path / (AFTER defining other routes)
+app.mount("/", payment_app)
 
 # -------------------
 # Keep-Alive + Auto-Restart Section
@@ -78,13 +86,6 @@ def keep_alive():
         except Exception as e:
             print("[KeepAlive] Ping failed:", e)
         time.sleep(600)  # every 10 minutes
-
-
-@app.get("/restart")
-def restart_server():
-    """Manual restart endpoint (private use)."""
-    os.kill(os.getpid(), signal.SIGTERM)
-    return {"status": "Server restarting..."}
 
 
 # Start keep-alive thread
