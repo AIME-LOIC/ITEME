@@ -4,7 +4,19 @@ services:
     runtime: python
     plan: free
     buildCommand: pip install -r requirements.txt
-    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    startCommand: uvicorn main:app --host 0.0.0.0 --port ${PORT}
     envVars:
       - key: PYTHON_VERSION
         value: 3.13
+      - key: SUPABASE_URL
+        fromService:
+          name: iteme-charity
+          property: env.SUPABASE_URL
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        fromService:
+          name: iteme-charity
+          property: env.SUPABASE_SERVICE_ROLE_KEY
+      - key: ADMIN_PASSWORD
+        fromService:
+          name: iteme-charity
+          property: env.ADMIN_PASSWORD
