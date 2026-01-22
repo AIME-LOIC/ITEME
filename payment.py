@@ -1,118 +1,85 @@
 import os
 import csv
 import io
-import psycopg2
-from psycopg2.extras import RealDictCursor
-from flask import Flask, request, jsonify, render_template_string, send_file
+import base64
+from fastapi import FastAPI, Request, Form, HTTPException
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, HTMLResponse
+from fastapi.templating import Jinja2Templates
+from config import supabase  # ✅ Import Supabase client
 
-app = Flask(__name__)
+app = FastAPI()
 
 # Admin password - set via environment variable or use default
 ADMIN_PASSWORD = os.getenv('ADMIN_PASSWORD', 'iteme2026')
 
-# --- DATABASE CONFIGURATION ---
-# Note: In a production environment, these would be environment variables.
-# Using standard PostgreSQL environment variables or defaults.
-
-DATABASE_URL="postgresql://postgres:aime@localhost:5432/iteme_pay"
-
-def get_db_connection():
-    """Establishes a connection to the PostgreSQL database."""
-    conn = psycopg2.connect(DATABASE_URL)
-    return conn
-
-def init_db():
-    """Initializes the database schema."""
-    conn = get_db_connection()
-    cur = conn.cursor()
-    cur.execute('''
-        CREATE TABLE IF NOT EXISTS transactions (
-            id SERIAL PRIMARY KEY,
-            name TEXT NOT NULL,
-            date DATE NOT NULL,
-            amount DECIMAL(10, 2) NOT NULL,
-            receiver TEXT NOT NULL,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );
-    ''')
-    conn.commit()
-    cur.close()
-    conn.close()
-
-# Initialize the DB on startup
-try:
-    init_db()
-except Exception as e:
-    print(f"Database initialization failed: {e}")
-
 # --- API ROUTES ---
 
-@app.route('/api/submit', methods=['POST'])
-def submit_data():
-    """Endpoint to save form data to PostgreSQL."""
-    data = request.json
-    try:
-        conn = get_db_connection()
-        cur = conn.cursor()
-        cur.execute(
-            "INSERT INTO transactions (name, date, amount, receiver) VALUES (%s, %s, %s, %s)",
-            (data['name'], data['date'], data['amount'], data['receiver'])
-        )
-        conn.commit()
-        cur.close()
-        conn.close()
-        return jsonify({"status": "success", "message": "Data saved successfully!"}), 201
-    except Exception as e:
-        return jsonify({"status": "error", "message": str(e)}), 500
+@app.get("/")
+def home(request: Request):
+    """Serves the public submission form."""
+    return HTMLResponse(PUBLIC_HTML_TEMPLATE)
 
-@app.route('/api/admin/data', methods=['GET'])
-def get_data():
-    """Endpoint for the admin panel to fetch all records."""
-    import base64
-    pwd = request.args.get('pwd')
-    if pwd:
-        try:
-            pwd = base64.b64decode(pwd).decode('utf-8')
-        except:
-            pass
-    if not pwd or pwd != ADMIN_PASSWORD:
-        return jsonify({"status": "error", "message": "Unauthorized"}), 401
-    
+@app.post('/api/submit')
+async def submit_data(
+    name: str = Form(...),
+    date: str = Form(...),
+    amount: str = Form(...),
+    receiver: str = Form(...)
+):
+    """Endpoint to save form data to Supabase."""
     try:
-        conn = get_db_connection()
-        cur = conn.cursor(cursor_factory=RealDictCursor)
-        cur.execute("SELECT * FROM transactions ORDER BY created_at DESC")
-        rows = cur.fetchall()
-        cur.close()
-        conn.close()
-        return jsonify(rows)
-    except Exception as e:
-        return jsonify({"status": "error", "message": str(e)}), 500
-
-@app.route('/api/admin/download', methods=['GET'])
-def download_csv():
-    """Download all transaction data in selected format."""
-    import base64
-    pwd = request.args.get('pwd')
-    format_type = request.args.get('format', 'csv').lower()
-    
-    if pwd:
-        try:
-            pwd = base64.b64decode(pwd).decode('utf-8')
-        except:
-            pass
-    if not pwd or pwd != ADMIN_PASSWORD:
-        return jsonify({"status": "error", "message": "Unauthorized"}), 401
-    
-    try:
-        conn = get_db_connection()
-        cur = conn.cursor(cursor_factory=RealDictCursor)
-        cur.execute("SELECT * FROM transactions ORDER BY created_at DESC")
-        rows = cur.fetchall()
-        cur.close()
-        conn.close()
+        data = {
+            "name": name,
+            "date": date,
+            "amount": float(amount),
+            "receiver": receiver
+        }
         
-        if format_type == 'csv':
+        result = supabase.table("payments").insert(data).execute()
+        
+        return JSONResponse(
+            {"status": "success", "message": "Data saved successfully!"},
+            status_code=201
+        )
+    except Exception as e:
+        return JSONResponse(
+            {"status": "error", "message": str(e)},
+            status_code=500
+        )
+
+@app.get('/api/admin/data')
+async def get_data(pwd: str = None):
+    """Endpoint for the admin panel to fetch all records."""
+    if pwd:
+        try:
+            pwd = base64.b64decode(pwd).decode('utf-8')
+        except:
+            pass
+    if not pwd or pwd != ADMIN_PASSWORD:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    
+    try:
+        result = supabase.table("payments").select("*").order("created_at", desc=True).execute()
+        return result.data
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get('/api/admin/download')
+async def download_csv(pwd: str = None, format: str = 'csv'):
+    """Download all transaction data in selected format."""
+    if pwd:
+        try:
+            pwd = base64.b64decode(pwd).decode('utf-8')
+        except:
+            pass
+    if not pwd or pwd != ADMIN_PASSWORD:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    
+    try:
+        result = supabase.table("payments").select("*").order("created_at", desc=True).execute()
+        rows = result.data
+        
+        if format == 'csv':
             # Create CSV in memory
             output = io.StringIO()
             if rows:
@@ -124,14 +91,13 @@ def download_csv():
             csv_data = output.getvalue()
             output.close()
             
-            return send_file(
+            return FileResponse(
                 io.BytesIO(csv_data.encode('utf-8')),
-                mimetype='text/csv',
-                as_attachment=True,
-                download_name='transactions_data.csv'
+                media_type='text/csv',
+                filename='transactions_data.csv'
             )
         
-        elif format_type == 'excel':
+        elif format == 'excel':
             try:
                 import openpyxl
                 from openpyxl.styles import Font, PatternFill, Alignment
@@ -156,20 +122,18 @@ def download_csv():
                 wb.save(output)
                 output.seek(0)
                 
-                return send_file(
+                return FileResponse(
                     output,
-                    mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-                    as_attachment=True,
-                    download_name='transactions_data.xlsx'
+                    media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                    filename='transactions_data.xlsx'
                 )
             except ImportError:
-                return jsonify({"status": "error", "message": "Excel support not installed. Please install openpyxl."}), 400
+                raise HTTPException(status_code=400, detail="Excel support not installed. Please install openpyxl.")
         
-        elif format_type == 'pdf':
+        elif format == 'pdf':
             try:
-                from reportlab.lib.pagesizes import letter, A4
-                from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph
-                from reportlab.lib.styles import getSampleStyleSheet
+                from reportlab.lib.pagesizes import letter
+                from reportlab.platypus import SimpleDocTemplate, Table, TableStyle
                 from reportlab.lib import colors
                 
                 output = io.BytesIO()
@@ -198,20 +162,17 @@ def download_csv():
                 doc.build(elements)
                 output.seek(0)
                 
-                return send_file(
+                return FileResponse(
                     output,
-                    mimetype='application/pdf',
-                    as_attachment=True,
-                    download_name='transactions_data.pdf'
+                    media_type='application/pdf',
+                    filename='transactions_data.pdf'
                 )
             except ImportError:
-                return jsonify({"status": "error", "message": "PDF support not installed. Please install reportlab."}), 400
+                raise HTTPException(status_code=400, detail="PDF support not installed. Please install reportlab.")
         
-        elif format_type == 'docx':
+        elif format == 'docx':
             try:
                 from docx import Document
-                from docx.shared import Inches, Pt, RGBColor
-                from docx.enum.text import WD_ALIGN_PARAGRAPH
                 
                 doc = Document()
                 doc.add_heading('Transaction Report', 0)
@@ -238,41 +199,31 @@ def download_csv():
                 doc.save(output)
                 output.seek(0)
                 
-                return send_file(
+                return FileResponse(
                     output,
-                    mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-                    as_attachment=True,
-                    download_name='transactions_data.docx'
+                    media_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                    filename='transactions_data.docx'
                 )
             except ImportError:
-                return jsonify({"status": "error", "message": "DOCX support not installed. Please install python-docx."}), 400
+                raise HTTPException(status_code=400, detail="DOCX support not installed. Please install python-docx.")
         
         else:
-            return jsonify({"status": "error", "message": "Unsupported format"}), 400
+            raise HTTPException(status_code=400, detail="Unsupported format")
             
     except Exception as e:
-        return jsonify({"status": "error", "message": str(e)}), 500
+        raise HTTPException(status_code=500, detail=str(e))
 
-# --- FRONTEND ROUTES ---
-
-@app.route('/')
-def index():
-    """Serves the public submission form only."""
-    return render_template_string(PUBLIC_HTML_TEMPLATE)
-
-@app.route('/admin', methods=['GET'])
-def admin_panel():
+@app.get('/admin')
+async def admin_panel(pwd: str = None):
     """Admin panel - password protected."""
-    import base64
-    pwd = request.args.get('pwd')
     if pwd:
         try:
             pwd = base64.b64decode(pwd).decode('utf-8')
         except:
             pass
     if not pwd or pwd != ADMIN_PASSWORD:
-        return render_template_string(ADMIN_LOGIN_TEMPLATE), 401
-    return render_template_string(ADMIN_HTML_TEMPLATE, password=pwd)
+        return HTMLResponse(ADMIN_LOGIN_TEMPLATE, status_code=401)
+    return HTMLResponse(ADMIN_HTML_TEMPLATE)
 
 # --- HTML/CSS/JS ASSETS ---
 
@@ -374,18 +325,16 @@ PUBLIC_HTML_TEMPLATE = """
             e.preventDefault();
             const statusBox = document.getElementById('statusMessage');
             
-            const formData = {
-                name: document.getElementById('name').value,
-                date: document.getElementById('date').value,
-                amount: parseFloat(document.getElementById('amount').value),
-                receiver: document.getElementById('receiver').value
-            };
+            const formData = new FormData();
+            formData.append('name', document.getElementById('name').value);
+            formData.append('date', document.getElementById('date').value);
+            formData.append('amount', document.getElementById('amount').value);
+            formData.append('receiver', document.getElementById('receiver').value);
 
             try {
                 const response = await fetch('/api/submit', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(formData)
+                    body: formData
                 });
                 
                 const result = await response.json();
@@ -640,7 +589,3 @@ ADMIN_HTML_TEMPLATE = """
 </body>
 </html>
 """
-
-if __name__ == '__main__':
-    # Using threaded mode for development convenience
-    app.run(host='0.0.0.0', port=5000, debug=True)
