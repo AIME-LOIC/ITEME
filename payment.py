@@ -280,7 +280,7 @@ PUBLIC_HTML_TEMPLATE = """
 
     <nav class="bg-white shadow-sm mb-8">
         <div class="max-w-4xl mx-auto px-4">
-            <h1 class="py-4 px-2 font-semibold text-gray-800">PAYMENT FORM</h1>
+            <h1 class="py-4 px-2 font-semibold text-gray-800">ICF PAYMENT FORM</h1>
         </div>
     </nav>
 
@@ -289,7 +289,7 @@ PUBLIC_HTML_TEMPLATE = """
         <!-- Submission Form Tab -->
         <section id="form-tab" class="tab-content active">
             <div class="bg-white p-8 rounded-xl shadow-md border border-gray-100">
-                <h2 class="text-2xl font-bold mb-6 text-gray-800">ITEME PAYMENT FORM</h2>
+                <h2 class="text-2xl font-bold mb-6 text-gray-800">ICF PAYMENT FORM</h2>
                 <form id="submissionForm" class="space-y-4">
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
