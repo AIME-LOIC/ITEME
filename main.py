@@ -76,7 +76,7 @@ app.mount("/", payment_app)
 # Keep-Alive + Auto-Restart Section
 # -------------------
 
-RENDER_URL = "https://iteme-charity-wk9f.onrender.com"  # 🔁 replace with your real Render URL
+RENDER_URL = "https://iteme-charity-family.onrender.com"  # 🔁 replace with your real Render URL
 
 def keep_alive():
     """Ping the app every 10 minutes to prevent sleeping (for free plans)."""
