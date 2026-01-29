@@ -1,7 +1,9 @@
+# ...existing code...
 import os
 import csv
 import io
 import base64
+import json
 from fastapi import FastAPI, Request, Form, HTTPException
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, HTMLResponse
 from fastapi.templating import Jinja2Templates
@@ -61,6 +63,55 @@ async def get_data(pwd: str = None):
     try:
         result = supabase.table("payments").select("*").order("created_at", desc=True).execute()
         return result.data
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+# Single delete endpoint (admin only).
+@app.delete('/api/admin/delete')
+async def delete_payment(id: int = None, pwd: str = None):
+    """Delete a single payment record by id (admin only)."""
+    if pwd:
+        try:
+            pwd = base64.b64decode(pwd).decode('utf-8')
+        except:
+            pass
+    if not pwd or pwd != ADMIN_PASSWORD:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    if id is None:
+        raise HTTPException(status_code=400, detail="Missing id parameter")
+    try:
+        result = supabase.table("payments").delete().eq("id", id).execute()
+        # Supabase may return deleted rows in result.data; if none, treat as not found
+        if hasattr(result, "data") and (result.data is None or (isinstance(result.data, list) and len(result.data) == 0)):
+            raise HTTPException(status_code=404, detail="Payment not found")
+        return JSONResponse({"status": "success", "message": "Payment deleted", "deleted": result.data})
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+# New: bulk delete endpoint (admin only) - accepts JSON body: {"ids": [1,2,3]}
+@app.post('/api/admin/delete-multiple')
+async def delete_multiple(payload: dict, pwd: str = None):
+    """
+    Delete multiple payments by IDs.
+    Send JSON body: {"ids": [1,2,3]}
+    """
+    if pwd:
+        try:
+            pwd = base64.b64decode(pwd).decode('utf-8')
+        except:
+            pass
+    if not pwd or pwd != ADMIN_PASSWORD:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    ids = payload.get("ids") if isinstance(payload, dict) else None
+    if not ids or not isinstance(ids, list):
+        raise HTTPException(status_code=400, detail="Missing or invalid 'ids' list in request body")
+    try:
+        # Supabase client: use .in_('id', ids) if available
+        result = supabase.table("payments").delete().in_("id", ids).execute()
+        # result.data may contain deleted rows; return them
+        return JSONResponse({"status": "success", "deleted": result.data})
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -381,9 +432,10 @@ ADMIN_HTML_TEMPLATE = """
         <div class="bg-white p-6 rounded-xl shadow-md border border-gray-100">
             <div class="flex justify-between items-center mb-6">
                 <h2 class="text-xl font-bold text-gray-800">Transaction Records</h2>
-                <div class="flex gap-2">
+                <div class="flex gap-2 items-center">
                     <button onclick="fetchAdminData()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md transition font-medium text-sm">Refresh Data</button>
                     <button onclick="showDownloadModal()" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md transition font-medium text-sm">📥 Download</button>
+                    <button id="bulk-delete-btn" onclick="confirmBulkDelete()" disabled class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md transition font-medium text-sm">Delete Selected</button>
                 </div>
             </div>
             <div class="overflow-x-auto">
@@ -391,15 +443,16 @@ ADMIN_HTML_TEMPLATE = """
                     <thead>
                         <tr class="bg-gray-50 border-b">
                             <th class="p-3 text-sm font-semibold text-gray-600">ID</th>
+                            <th class="p-3 text-sm font-semibold text-gray-600 text-center"><input id="select-all" type="checkbox" title="Select all"></th>
                             <th class="p-3 text-sm font-semibold text-gray-600"> Name</th>
                             <th class="p-3 text-sm font-semibold text-gray-600"> Date</th>
                             <th class="p-3 text-sm font-semibold text-gray-600"> Amount</th>
                             <th class="p-3 text-sm font-semibold text-gray-600"> Receiver</th>
-                            <th class="p-3 text-sm font-semibold text-gray-600"> Trust</th>
+                            <th class="p-3 text-sm font-semibold text-gray-600"> Actions</th>
                         </tr>
                     </thead>
                     <tbody id="adminTableBody">
-                        <tr><td colspan="6" class="p-4 text-center text-gray-400">Loading...</td></tr>
+                        <tr><td colspan="7" class="p-4 text-center text-gray-400">Loading...</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -412,16 +465,22 @@ ADMIN_HTML_TEMPLATE = """
         const urlParams = new URLSearchParams(window.location.search);
         const adminPassword = urlParams.get('pwd');
 
+        // Track selected IDs for bulk actions
+        const selectedIds = new Set();
+
         // Fetch Admin Table Data
         async function fetchAdminData() {
             const tableBody = document.getElementById('adminTableBody');
-            tableBody.innerHTML = '<tr><td colspan="6" class="p-4 text-center text-gray-500">⏳ Loading records...</td></tr>';
-            
+            tableBody.innerHTML = '<tr><td colspan="7" class="p-4 text-center text-gray-500">⏳ Loading records...</td></tr>';
+            // reset selections
+            selectedIds.clear();
+            updateBulkButton();
+
             try {
                 const response = await fetch(`/api/admin/data?pwd=${encodeURIComponent(adminPassword)}`);
                 
                 if (response.status === 401) {
-                    tableBody.innerHTML = '<tr><td colspan="6" class="p-4 text-center text-red-500">❌ Unauthorized. Invalid password.</td></tr>';
+                    tableBody.innerHTML = '<tr><td colspan="7" class="p-4 text-center text-red-500">❌ Unauthorized. Invalid password.</td></tr>';
                     return;
                 }
 
@@ -429,7 +488,7 @@ ADMIN_HTML_TEMPLATE = """
                 
                 tableBody.innerHTML = '';
                 if(!data || data.length === 0) {
-                    tableBody.innerHTML = '<tr><td colspan="6" class="p-4 text-center text-gray-400">📭 No records found.</td></tr>';
+                    tableBody.innerHTML = '<tr><td colspan="7" class="p-4 text-center text-gray-400">📭 No records found.</td></tr>';
                     return;
                 }
 
@@ -439,93 +498,225 @@ ADMIN_HTML_TEMPLATE = """
                     tr.className = "border-b hover:bg-gray-50 transition";
                     tr.innerHTML = `
                         <td class="p-3 text-sm text-gray-500">${row.id}</td>
+                        <td class="p-3 text-center"><input class="row-select" type="checkbox" data-id="${row.id}" onchange="toggleSelect(this)"></td>
                         <td class="p-3 text-sm font-medium text-gray-800">${row.name}</td>
                         <td class="p-3 text-sm text-gray-600">${row.date}</td>
                         <td class="p-3 text-sm text-green-600 font-bold">$${parseFloat(row.amount).toFixed(2)}</td>
                         <td class="p-3 text-sm text-gray-600">${row.receiver}</td>
                         <td class="p-3 text-center">
-                            <button onclick="toggleBurn(${row.id}, this)" class="burn-btn bg-orange-500 hover:bg-orange-600 text-white px-3 py-1 rounded-md text-sm transition font-medium" data-row-id="${row.id}" data-burned="false">
-                                Trust
-                            </button>
+                            <button onclick="showConfirmDelete(${row.id})" class="delete-btn bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded-md text-sm transition font-medium" data-row-id="${row.id}">Delete</button>
                         </td>
                     `;
                     tableBody.appendChild(tr);
                 });
+
+                // clear select-all checkbox
+                const sa = document.getElementById('select-all');
+                if (sa) sa.checked = false;
+
             } catch (err) {
                 console.error(err);
-                tableBody.innerHTML = '<tr><td colspan="6" class="p-4 text-center text-red-500">⚠️ Failed to load data.</td></tr>';
+                tableBody.innerHTML = '<tr><td colspan="7" class="p-4 text-center text-red-500">⚠️ Failed to load data.</td></tr>';
             }
         }
 
-        // Toggle burn status
-        function toggleBurn(rowId, btn) {
-            const row = document.getElementById(`row-${rowId}`);
-            const isBurned = btn.getAttribute('data-burned') === 'true';
-            
-            if (!isBurned) {
-                // First click - mark as not trusted
-                row.style.backgroundColor = '#fee2e2'; // Light red
-                row.style.borderLeft = '4px solid #dc2626'; // Dark red border
-                btn.classList.remove('bg-orange-500', 'hover:bg-orange-600');
-                btn.classList.add('bg-red-600', 'hover:bg-red-700');
-                btn.textContent = 'Untrusted';
-                btn.setAttribute('data-burned', 'true');
+        // Toggle selection for a single row checkbox
+        function toggleSelect(el) {
+            const id = parseInt(el.dataset.id);
+            if (el.checked) selectedIds.add(id);
+            else selectedIds.delete(id);
+            updateBulkButton();
+
+            // update select-all if needed
+            const all = document.querySelectorAll('.row-select');
+            const checked = document.querySelectorAll('.row-select:checked');
+            const sa = document.getElementById('select-all');
+            if (sa) sa.checked = (all.length > 0 && checked.length === all.length);
+        }
+
+        // Update bulk delete button state and label
+        function updateBulkButton() {
+            const btn = document.getElementById('bulk-delete-btn');
+            if (!btn) return;
+            if (selectedIds.size === 0) {
+                btn.disabled = true;
+                btn.textContent = 'Delete Selected';
             } else {
-                // Second click - return to normal
-                row.style.backgroundColor = ''; // Reset
-                row.style.borderLeft = ''; // Reset
-                btn.classList.remove('bg-red-600', 'hover:bg-red-700');
-                btn.classList.add('bg-orange-500', 'hover:bg-orange-600');
-                btn.textContent = 'Trust';
-                btn.setAttribute('data-burned', 'false');
+                btn.disabled = false;
+                btn.textContent = `Delete Selected (${selectedIds.size})`;
             }
         }
 
-        // Toggle trust status with localStorage
-        function toggleBurn(rowId, btn) {
-            const row = document.getElementById(`row-${rowId}`);
-            const isTrusted = btn.getAttribute('data-burned') === 'true';
-            
-            // Save to localStorage
-            const trustStatus = localStorage.getItem(`trust_${rowId}`) === 'true';
-            
-            if (!trustStatus) {
-                // Mark as untrusted (red)
-                row.style.backgroundColor = '#fee2e2'; // Light red
-                row.style.borderLeft = '4px solid #dc2626'; // Dark red border
-                btn.classList.remove('bg-orange-500', 'hover:bg-orange-600');
-                btn.classList.add('bg-red-600', 'hover:bg-red-700');
-                btn.textContent = 'Untrusted';
-                btn.setAttribute('data-burned', 'true');
-                localStorage.setItem(`trust_${rowId}`, 'false');
-            } else {
-                // Mark as trusted (normal)
-                row.style.backgroundColor = ''; // Reset
-                row.style.borderLeft = ''; // Reset
-                btn.classList.remove('bg-red-600', 'hover:bg-red-700');
-                btn.classList.add('bg-orange-500', 'hover:bg-orange-600');
-                btn.textContent = 'Trust';
-                btn.setAttribute('data-burned', 'false');
-                localStorage.setItem(`trust_${rowId}`, 'true');
+        // Select all toggle
+        document.addEventListener('click', (e) => {
+            if (e.target && e.target.id === 'select-all') {
+                const checked = e.target.checked;
+                document.querySelectorAll('.row-select').forEach(cb => {
+                    cb.checked = checked;
+                    const id = parseInt(cb.dataset.id);
+                    if (checked) selectedIds.add(id);
+                    else selectedIds.delete(id);
+                });
+                updateBulkButton();
             }
-        }
+        });
 
-        // Load trust status from localStorage
-        function loadTrustStatus() {
-            document.querySelectorAll('.burn-btn').forEach(btn => {
-                const rowId = btn.getAttribute('data-row-id');
-                const isTrusted = localStorage.getItem(`trust_${rowId}`) !== 'false';
-                const row = document.getElementById(`row-${rowId}`);
-                
-                if (!isTrusted) {
-                    row.style.backgroundColor = '#fee2e2';
-                    row.style.borderLeft = '4px solid #dc2626';
-                    btn.classList.remove('bg-orange-500', 'hover:bg-orange-600');
-                    btn.classList.add('bg-red-600', 'hover:bg-red-700');
-                    btn.textContent = 'Untrusted';
-                    btn.setAttribute('data-burned', 'true');
-                }
+        // Show confirmation popup before deleting a single row
+        function showConfirmDelete(rowId) {
+            // Prevent multiple modals
+            if (document.getElementById('confirm-delete-modal')) return;
+
+            const modal = document.createElement('div');
+            modal.id = 'confirm-delete-modal';
+            modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+            modal.innerHTML = `
+                <div class="bg-white p-6 rounded-xl shadow-2xl max-w-md w-full">
+                    <h3 class="text-lg font-bold mb-4 text-gray-800">Confirm deletion</h3>
+                    <p class="text-sm text-gray-600 mb-6">Are you sure you want to delete record #${rowId}? This action cannot be undone.</p>
+                    <div class="flex gap-3 justify-end">
+                        <button id="confirm-cancel" class="px-4 py-2 rounded-md bg-gray-200 hover:bg-gray-300">Cancel</button>
+                        <button id="confirm-ok" class="px-4 py-2 rounded-md bg-red-600 text-white hover:bg-red-700">Delete</button>
+                    </div>
+                </div>
+            `;
+
+            document.body.appendChild(modal);
+
+            modal.addEventListener('click', (evt) => {
+                if (evt.target === modal) modal.remove();
             });
+
+            document.getElementById('confirm-cancel').addEventListener('click', () => modal.remove());
+            document.getElementById('confirm-ok').addEventListener('click', async () => {
+                await doDelete(rowId);
+                modal.remove();
+            });
+        }
+
+        // Perform delete for a single row
+        async function doDelete(rowId) {
+            try {
+                const response = await fetch(`/api/admin/delete?id=${rowId}&pwd=${encodeURIComponent(adminPassword)}`, {
+                    method: 'DELETE'
+                });
+
+                if (response.status === 401) {
+                    showToast('Unauthorized. Invalid password.', 'error');
+                    return;
+                }
+                if (response.status === 404) {
+                    showToast('Record not found.', 'error');
+                    return;
+                }
+                if (!response.ok) {
+                    const json = await response.json().catch(() => null);
+                    const msg = (json && (json.detail || json.message)) || 'Error deleting record';
+                    showToast(msg, 'error');
+                    return;
+                }
+
+                // Remove row from table
+                const row = document.getElementById(`row-${rowId}`);
+                if (row) row.remove();
+                // ensure it's removed from selection
+                selectedIds.delete(rowId);
+                updateBulkButton();
+                showToast('Record deleted successfully.', 'success');
+            } catch (err) {
+                console.error(err);
+                showToast('Error deleting record. Please try again.', 'error');
+            }
+        }
+
+        // Confirm bulk delete modal
+        function confirmBulkDelete() {
+            if (selectedIds.size === 0) return;
+            if (document.getElementById('confirm-bulk-delete-modal')) return;
+
+            const idsArray = Array.from(selectedIds);
+            const modal = document.createElement('div');
+            modal.id = 'confirm-bulk-delete-modal';
+            modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+            modal.innerHTML = `
+                <div class="bg-white p-6 rounded-xl shadow-2xl max-w-md w-full">
+                    <h3 class="text-lg font-bold mb-4 text-gray-800">Confirm bulk deletion</h3>
+                    <p class="text-sm text-gray-600 mb-4">Are you sure you want to delete <strong>${idsArray.length}</strong> selected record(s)? This action cannot be undone.</p>
+                    <div class="text-xs text-gray-600 mb-4">IDs: ${idsArray.join(', ')}</div>
+                    <div class="flex gap-3 justify-end">
+                        <button id="bulk-cancel" class="px-4 py-2 rounded-md bg-gray-200 hover:bg-gray-300">Cancel</button>
+                        <button id="bulk-ok" class="px-4 py-2 rounded-md bg-red-600 text-white hover:bg-red-700">Delete</button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+
+            modal.addEventListener('click', (evt) => {
+                if (evt.target === modal) modal.remove();
+            });
+
+            document.getElementById('bulk-cancel').addEventListener('click', () => modal.remove());
+            document.getElementById('bulk-ok').addEventListener('click', async () => {
+                await doBulkDelete(idsArray);
+                modal.remove();
+            });
+        }
+
+        // Perform bulk delete (POST JSON)
+        async function doBulkDelete(ids) {
+            try {
+                const response = await fetch(`/api/admin/delete-multiple?pwd=${encodeURIComponent(adminPassword)}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ids })
+                });
+
+                if (response.status === 401) {
+                    showToast('Unauthorized. Invalid password.', 'error');
+                    return;
+                }
+                if (!response.ok) {
+                    const json = await response.json().catch(() => null);
+                    const msg = (json && (json.detail || json.message)) || 'Error deleting records';
+                    showToast(msg, 'error');
+                    return;
+                }
+
+                const json = await response.json().catch(() => null);
+                // remove deleted rows from DOM
+                ids.forEach(id => {
+                    const row = document.getElementById(`row-${id}`);
+                    if (row) row.remove();
+                    selectedIds.delete(id);
+                });
+                // reset select-all
+                const sa = document.getElementById('select-all');
+                if (sa) sa.checked = false;
+                updateBulkButton();
+                showToast(`Deleted ${ids.length} record(s).`, 'success');
+            } catch (err) {
+                console.error(err);
+                showToast('Error deleting records. Please try again.', 'error');
+            }
+        }
+
+        // Simple toast notification
+        function showToast(message, type = 'info') {
+            // Remove existing toast
+            const existing = document.getElementById('admin-toast');
+            if (existing) existing.remove();
+
+            const toast = document.createElement('div');
+            toast.id = 'admin-toast';
+            const bg = type === 'success' ? 'bg-green-500' : (type === 'error' ? 'bg-red-500' : 'bg-gray-800');
+            toast.className = `fixed bottom-6 right-6 text-white px-4 py-2 rounded shadow-lg ${bg} z-50`;
+            toast.textContent = message;
+
+            document.body.appendChild(toast);
+            setTimeout(() => {
+                toast.style.transition = 'opacity 250ms';
+                toast.style.opacity = '0';
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
         }
 
         // Download modal popup
@@ -584,8 +775,8 @@ ADMIN_HTML_TEMPLATE = """
 
         // Load data on page load
         fetchAdminData();
-        setTimeout(loadTrustStatus, 500);
     </script>
 </body>
 </html>
 """
+# ...existing code...
